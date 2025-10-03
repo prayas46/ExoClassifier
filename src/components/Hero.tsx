@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import earthImage from "@/assets/earth-purple.png";
 
 export default function Hero() {
   return (
@@ -80,14 +81,11 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
         >
           <div className="w-full flex h-40 md:h-64 relative overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 mx-auto -z-10 opacity-80 w-full h-full">
-              <div 
-                className="w-full h-full"
-                style={{
-                  background: "radial-gradient(circle at center, rgba(155, 135, 245, 0.3) 0%, transparent 70%)",
-                }}
-              />
-            </div>
+            <img
+              src={earthImage}
+              alt="Earth"
+              className="absolute px-4 top-0 left-1/2 -translate-x-1/2 mx-auto -z-10 opacity-80 w-auto h-full object-contain"
+            />
           </div>
           <div className="relative z-10 mx-auto max-w-5xl overflow-hidden rounded-lg cosmic-glow">
             <div className="aspect-video w-full rounded-lg border border-foreground/10 bg-gradient-to-br from-card to-background p-8">
