@@ -1,11 +1,18 @@
 // Centralized API helper for the exoplanet-classifier backend
 // Uses Vite env variable VITE_API_BASE_URL
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || "/api";
+const isDevelopment = import.meta.env.DEV;
+const devApiUrl = "/api"; // Use proxy in development
+const prodApiUrl = import.meta.env.VITE_API_BASE_URL || "https://exoplanet-classifier-backend-api.onrender.com";
 
-if (!import.meta.env.VITE_API_BASE_URL) {
+export const API_BASE_URL = isDevelopment ? devApiUrl : prodApiUrl;
+
+if (isDevelopment) {
   // eslint-disable-next-line no-console
-  console.warn("VITE_API_BASE_URL is not defined. Defaulting to '/api' (dev proxy). Set it in .env for production.");
+  console.log("Development mode: Using proxy at", API_BASE_URL);
+} else {
+  // eslint-disable-next-line no-console
+  console.log("Production mode: Using API at", API_BASE_URL);
 }
 
 // Types that reflect backend responses (subset)
@@ -23,9 +30,30 @@ export interface PredictionResponse {
 }
 
 export async function getHealth(): Promise<any> {
-  const res = await fetch(`${API_BASE_URL}/`, { method: "GET" });
-  if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
-  return res.json();
+  try {
+    console.log('Making request to:', `${API_BASE_URL}/`);
+    const res = await fetch(`${API_BASE_URL}/`, { 
+      method: "GET",
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('Response status:', res.status);
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Health check failed: ${res.status} - ${errorText}`);
+    }
+    const data = await res.json();
+    console.log('Health check response:', data);
+    return data;
+  } catch (error) {
+    console.error('Health check error details:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to connect to the API. This might be a CORS issue or the API is unreachable.');
+    }
+    throw error;
+  }
 }
 
 export async function getModelInfo(): Promise<any> {
@@ -35,16 +63,33 @@ export async function getModelInfo(): Promise<any> {
 }
 
 export async function predictSingle(payload: Record<string, number | undefined>): Promise<PredictionResponse> {
-  const res = await fetch(`${API_BASE_URL}/predict/single`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Single prediction failed: ${res.status} ${text}`);
+  try {
+    console.log('Making prediction request to:', `${API_BASE_URL}/predict/single`);
+    console.log('Payload:', payload);
+    const res = await fetch(`${API_BASE_URL}/predict/single`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    console.log('Prediction response status:', res.status);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Prediction error response:', text);
+      throw new Error(`Single prediction failed: ${res.status} ${text}`);
+    }
+    const data = await res.json();
+    console.log('Prediction response:', data);
+    return data;
+  } catch (error) {
+    console.error('Prediction error details:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to connect to the API for prediction. This might be a CORS issue.');
+    }
+    throw error;
   }
-  return res.json();
 }
 
 export async function predictCSV(file: File): Promise<PredictionResponse> {
