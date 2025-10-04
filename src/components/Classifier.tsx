@@ -73,13 +73,8 @@ export default function Classifier() {
   };
 
   return (
-<<<<<<< HEAD
-    <section className="relative w-full py-20 px-4">
-      <div className="container mx-auto w-full">
-=======
     <section id="classifier" className="relative w-full py-20 px-4 bg-background">
-      <div className="container mx-auto max-w-6xl">
->>>>>>> 5f296824ce1d5bb02f9175f50ca353b159d1eb88
+      <div className="container mx-auto w-full">
         {/* Tab Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -112,7 +107,6 @@ export default function Classifier() {
           </button>
         </motion.div>
 
-<<<<<<< HEAD
         {/* Main Content - Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Classifier Form */}
@@ -131,24 +125,6 @@ export default function Classifier() {
                 ? "Enter the parameters of an exoplanet to get its classification. You don't need to fill all fields - the model will use available data."
                 : "Upload a CSV file with multiple exoplanet observations for batch classification."}
             </p>
-=======
-        {/* Main Form Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-card rounded-2xl p-8 md:p-10 shadow-xl border border-border"
-        >
-          <h2 className="text-3xl md:text-4xl font-light mb-2">
-            {mode === "single" ? "Single Planet Analysis" : "Batch Analysis"}
-          </h2>
-          <p className="text-muted-foreground text-sm mb-8">
-            {mode === "single"
-              ? "Adjust parameters to analyze an exoplanet candidate"
-              : "Upload CSV file for batch classification"}
-          </p>
->>>>>>> 5f296824ce1d5bb02f9175f50ca353b159d1eb88
 
           {mode === "single" ? (
             <div className="space-y-8">
@@ -300,20 +276,12 @@ export default function Classifier() {
               </div>
 
               {/* Classify Button */}
-<<<<<<< HEAD
               <div className="flex justify-center pt-8">
                 <Button
                   size="lg"
                   onClick={handleClassification}
                   disabled={isAnalyzing}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all"
-=======
-              <div className="flex justify-center pt-4">
-                <Button
-                  size="lg"
-                  onClick={handleClassification}
-                  className="rounded-full px-10 py-6 text-base shadow-lg hover:shadow-xl transition-all"
->>>>>>> 5f296824ce1d5bb02f9175f50ca353b159d1eb88
                 >
                   {isAnalyzing ? (
                     <>
@@ -350,16 +318,16 @@ export default function Classifier() {
               </div>
             </div>
           )}
-          </motion.div>
-
-          {/* Right Column - 3D Visualization & Results */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-card rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
-          >
+        </motion.div>
+        
+        {/* Right Column - 3D Visualization & Results */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-card rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
+        >
             <h3 className="text-2xl md:text-3xl font-light text-primary mb-6">
               3D Exoplanet Model
             </h3>
