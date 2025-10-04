@@ -1,15 +1,52 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Rocket, BarChart3, Info } from "lucide-react";
+import { Rocket, BarChart3 } from "lucide-react";
 
 type AnalysisMode = "single" | "batch";
 
 export default function Classifier() {
   const [mode, setMode] = useState<AnalysisMode>("single");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Parameter states
+  const [orbitalPeriod, setOrbitalPeriod] = useState([365.25]);
+  const [planetRadius, setPlanetRadius] = useState([1.0]);
+  const [transitDepth, setTransitDepth] = useState([1000]);
+  const [transitDuration, setTransitDuration] = useState([3.5]);
+  const [planetMass, setPlanetMass] = useState([1.0]);
+  const [stellarTemp, setStellarTemp] = useState([5778]);
+  const [stellarRadius, setStellarRadius] = useState([1.0]);
+  const [systemDistance, setSystemDistance] = useState([200]);
+
+  const resetToDefaults = () => {
+    setOrbitalPeriod([365.25]);
+    setPlanetRadius([1.0]);
+    setTransitDepth([1000]);
+    setTransitDuration([3.5]);
+    setPlanetMass([1.0]);
+    setStellarTemp([5778]);
+    setStellarRadius([1.0]);
+    setSystemDistance([200]);
+  };
+
+  const handleClassification = () => {
+    const planetData = {
+      orbital_period: orbitalPeriod[0],
+      planet_radius: planetRadius[0],
+      transit_depth: transitDepth[0],
+      transit_duration: transitDuration[0],
+      planet_mass: planetMass[0],
+      stellar_temperature: stellarTemp[0],
+      stellar_radius: stellarRadius[0],
+      system_distance: systemDistance[0]
+    };
+    
+    console.log('Classifying exoplanet with data:', planetData);
+    // Here you would typically send the data to your API
+  };
 
   return (
     <section className="relative w-full py-20 px-4">
@@ -67,108 +104,124 @@ export default function Classifier() {
             <div className="space-y-6">
               {/* First Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="orbital-period" className="flex items-center gap-2">
-                    Orbital Period (days)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Orbital Period (days): {orbitalPeriod[0].toFixed(2)}
                   </Label>
-                  <Input
+                  <Slider
                     id="orbital-period"
-                    type="text"
-                    placeholder="e.g., 365.25"
-                    className="bg-background/50"
+                    value={orbitalPeriod}
+                    onValueChange={setOrbitalPeriod}
+                    max={1000}
+                    min={0.5}
+                    step={0.01}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="planet-radius" className="flex items-center gap-2">
-                    Planet Radius (Earth radii)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Planet Radius (Earth radii): {planetRadius[0].toFixed(2)}
                   </Label>
-                  <Input
+                  <Slider
                     id="planet-radius"
-                    type="text"
-                    placeholder="e.g., 1.0"
-                    className="bg-background/50"
+                    value={planetRadius}
+                    onValueChange={setPlanetRadius}
+                    max={10}
+                    min={0.1}
+                    step={0.01}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="transit-depth" className="flex items-center gap-2">
-                    Transit Depth (ppm)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Transit Depth (ppm): {transitDepth[0].toFixed(0)}
                   </Label>
-                  <Input
+                  <Slider
                     id="transit-depth"
-                    type="text"
-                    placeholder="e.g., 1000"
-                    className="bg-background/50"
+                    value={transitDepth}
+                    onValueChange={setTransitDepth}
+                    max={5000}
+                    min={10}
+                    step={10}
+                    className="w-full"
                   />
                 </div>
               </div>
 
               {/* Second Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="transit-duration" className="flex items-center gap-2">
-                    Transit Duration (hours)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Transit Duration (hours): {transitDuration[0].toFixed(1)}
                   </Label>
-                  <Input
+                  <Slider
                     id="transit-duration"
-                    type="text"
-                    placeholder="e.g., 3.5"
-                    className="bg-background/50"
+                    value={transitDuration}
+                    onValueChange={setTransitDuration}
+                    max={12}
+                    min={0.5}
+                    step={0.1}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="planet-mass" className="flex items-center gap-2">
-                    Planet Mass (Earth masses)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Planet Mass (Earth masses): {planetMass[0].toFixed(2)}
                   </Label>
-                  <Input
+                  <Slider
                     id="planet-mass"
-                    type="text"
-                    placeholder="e.g., 1.0"
-                    className="bg-background/50"
+                    value={planetMass}
+                    onValueChange={setPlanetMass}
+                    max={10}
+                    min={0.01}
+                    step={0.01}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="stellar-temp" className="flex items-center gap-2">
-                    Stellar Temperature (K)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Stellar Temperature (K): {stellarTemp[0].toFixed(0)}
                   </Label>
-                  <Input
+                  <Slider
                     id="stellar-temp"
-                    type="text"
-                    placeholder="e.g., 5778"
-                    className="bg-background/50"
+                    value={stellarTemp}
+                    onValueChange={setStellarTemp}
+                    max={10000}
+                    min={2000}
+                    step={50}
+                    className="w-full"
                   />
                 </div>
               </div>
 
               {/* Third Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="stellar-radius" className="flex items-center gap-2">
-                    Stellar Radius (Solar radii)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    Stellar Radius (Solar radii): {stellarRadius[0].toFixed(2)}
                   </Label>
-                  <Input
+                  <Slider
                     id="stellar-radius"
-                    type="text"
-                    placeholder="e.g., 1.0"
-                    className="bg-background/50"
+                    value={stellarRadius}
+                    onValueChange={setStellarRadius}
+                    max={5}
+                    min={0.1}
+                    step={0.01}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="system-distance" className="flex items-center gap-2">
-                    System Distance (pc)
-                    <Info className="w-4 h-4 text-muted-foreground" />
+                    System Distance (pc): {systemDistance[0].toFixed(0)}
                   </Label>
-                  <Input
+                  <Slider
                     id="system-distance"
-                    type="text"
-                    placeholder="e.g., 200"
-                    className="bg-background/50"
+                    value={systemDistance}
+                    onValueChange={setSystemDistance}
+                    max={1000}
+                    min={1}
+                    step={1}
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -182,7 +235,7 @@ export default function Classifier() {
                 >
                   {showAdvanced ? "Hide" : "Show"} Advanced Quality Inputs
                 </Button>
-                <Button variant="outline" className="text-sm">
+                <Button variant="outline" onClick={resetToDefaults} className="text-sm">
                   ✨ Prefill good-quality defaults
                 </Button>
               </div>
@@ -191,6 +244,7 @@ export default function Classifier() {
               <div className="flex justify-center pt-6">
                 <Button
                   size="lg"
+                  onClick={handleClassification}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all"
                 >
                   <Rocket className="w-5 h-5 mr-2" />

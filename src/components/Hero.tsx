@@ -1,8 +1,11 @@
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Button } from "@/components/ui/button-new";
+import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import earthImage from "@/assets/earth-purple.png";
 
 export default function Hero() {
+  const [isUnmuted, setIsUnmuted] = useState(false);
   return (
     <section
       className="relative w-full overflow-hidden pb-10 pt-32 md:pb-16 md:pt-20"
@@ -32,30 +35,31 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
           <span className="mb-6 inline-block rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">
-            NASA DATASETS • MACHINE LEARNING • K2 • KEPLER • TESS
+            K2 • KEPLER • TESS
           </span>
           <h1 className="mx-auto mb-6 max-w-4xl text-4xl font-light md:text-5xl lg:text-7xl">
-            Discover Exoplanets with{" "}
-            <span className="text-primary">AI-Powered</span> Classification
+            Discover <span className="text-primary">Exoplanets</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-foreground/60 md:text-xl">
-            Advanced machine learning algorithms analyze NASA's K2, Kepler, and TESS datasets 
-            to classify celestial objects as Confirmed Exoplanets, Planet Candidates, or False Positives.
+            AI-powered classification of NASA's exoplanet datasets.
           </p>
 
-          <div className="mb-10 sm:mb-0 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button
-              size="lg"
-              className="neumorphic-button relative w-full overflow-hidden rounded-full border border-foreground/10 bg-gradient-to-b from-foreground/10 to-foreground/5 px-8 py-6 text-foreground shadow-lg transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_20px_rgba(155,135,245,0.5)] sm:w-auto"
+          <div className="mb-10 sm:mb-0 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-0 w-[30%] mx-auto">
+            <Button 
+              variant="solid" 
+              size="default" 
+              className="w-full sm:w-auto my-1 whitespace-nowrap"
             >
               Explore Classifier
             </Button>
-            <button
+            <Button
               onClick={() => {
                 const element = document.getElementById('features');
                 element?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="flex w-full items-center justify-center gap-2 text-foreground/70 transition-colors hover:text-foreground sm:w-auto"
+              variant="ghost"
+              size="default"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 my-1 whitespace-nowrap"
             >
               <span>View Datasets</span>
               <svg
@@ -71,40 +75,72 @@ export default function Hero() {
               >
                 <path d="m6 9 6 6 6-6"></path>
               </svg>
-            </button>
+            </Button>
           </div>
         </motion.div>
         <motion.div
           className="relative"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
         >
-          <div className="w-full flex h-40 md:h-64 relative overflow-hidden">
+          <div
+            className="w-full flex relative overflow-hidden h-48 md:h-80 lg:h-[420px]"
+          >
             <img
               src={earthImage}
               alt="Earth"
-              className="absolute px-4 top-0 left-1/2 -translate-x-1/2 mx-auto -z-10 opacity-80 w-auto h-full object-contain"
+              className="absolute top-0 left-0 -z-10 w-full h-full object-cover object-top opacity-90 select-none pointer-events-none"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, black 65%, transparent 100%)",
+                maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+              }}
             />
           </div>
-          <div className="relative z-10 mx-auto max-w-5xl overflow-hidden rounded-lg cosmic-glow">
-            <div className="aspect-video w-full rounded-lg border border-foreground/10 bg-gradient-to-br from-card to-background p-8">
-              <div className="grid grid-cols-3 gap-4 h-full">
-                <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 p-4 border border-primary/20 flex flex-col items-center justify-center">
-                  <div className="text-3xl md:text-5xl font-light text-primary mb-2">K2</div>
-                  <div className="text-xs text-foreground/60">Dataset</div>
-                </div>
-                <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 p-4 border border-primary/20 flex flex-col items-center justify-center">
-                  <div className="text-3xl md:text-5xl font-light text-primary mb-2">Kepler</div>
-                  <div className="text-xs text-foreground/60">Dataset</div>
-                </div>
-                <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 p-4 border border-primary/20 flex flex-col items-center justify-center">
-                  <div className="text-3xl md:text-5xl font-light text-primary mb-2">TESS</div>
-                  <div className="text-xs text-foreground/60">Dataset</div>
+
+          <ContainerScroll
+            titleComponent={
+              <>
+                <h2 className="text-3xl md:text-5xl font-light text-primary pb-5 mb-5 px-6 py-4">
+                  Exoplanet Discovery
+                </h2>
+              </>
+            }
+          >
+            <div className="relative w-full h-full">
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/44pt8w67S8I?si=HnIy3KuKLbfuY5lE&controls=0&autoplay=1&mute=${isUnmuted ? 0 : 1}&playsinline=1&rel=0&modestbranding=1&loop=1`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                className="w-full h-full rounded-2xl"
+              ></iframe>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-2xl" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="flex items-center gap-3 text-white">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium">LIVE</span>
+                  <span className="text-xs opacity-75">Exoplanet Analysis</span>
                 </div>
               </div>
+              {!isUnmuted && (
+                <Button
+                  onClick={() => setIsUnmuted(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-4 right-4"
+                >
+                  Unmute
+                </Button>
+              )}
             </div>
-          </div>
+          </ContainerScroll>
         </motion.div>
       </div>
     </section>
