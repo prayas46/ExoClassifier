@@ -38,7 +38,7 @@ const PhaseFoldedTransit: React.FC<Props> = ({ example }) => {
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="phase" label={{ value: 'Orbital Phase', position: 'insideBottom', offset: -5 }} tick={{ fontSize: 12 }} />
-            <YAxis domain={[0.9995, 1.0005]} label={{ value: 'Normalized Flux', angle: -90, position: 'insideLeft' }} tick={{ fontSize: 12 }} />
+            <YAxis domain={[0.9998, 1.0002]} label={{ value: 'Normalized Flux', angle: -90, position: 'insideLeft' }} tick={{ fontSize: 12 }} />
             <Tooltip />
             <ReferenceLine x={0} stroke="red" strokeDasharray="3 3" />
             <Scatter data={data} fill="#667eea" opacity={0.3} />

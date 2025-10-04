@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip as UiTooltip, TooltipContent as UiTooltipContent, TooltipTrigger as UiTooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Rocket, BarChart3, Globe, Star, Zap, Upload, Download, Clock, AlertTriangle, CheckCircle } from "lucide-react";
@@ -19,6 +21,7 @@ import ConfidenceHeatmap from "@/components/viz/ConfidenceHeatmap";
 import AnimatedResultsFlow from "@/components/viz/AnimatedResultsFlow";
 import PhaseFoldedTransit from "@/components/viz/PhaseFoldedTransit";
 import { toast } from "@/hooks/use-toast";
+import { predictSingle, predictCSV, type PredictionResponse } from "@/lib/api";
 
 type AnalysisMode = "single" | "batch";
 
@@ -135,6 +138,29 @@ export default function Classifier() {
   const [stellarRadius, setStellarRadius] = useState([1.0]);
   const [systemDistance, setSystemDistance] = useState([200]);
 
+  // Advanced optional parameters (undefined means not included in payload)
+  const [plInsol, setPlInsol] = useState<number | undefined>(undefined);
+  const [plEqt, setPlEqt] = useState<number | undefined>(undefined);
+  const [stSlogg, setStSlogg] = useState<number | undefined>(undefined);
+  const [plImpact, setPlImpact] = useState<number | undefined>(undefined);
+  const [plSnr, setPlSnr] = useState<number | undefined>(undefined);
+  const [transitCount, setTransitCount] = useState<number | undefined>(undefined);
+  const [koiScore, setKoiScore] = useState<number | undefined>(undefined);
+  const [plOrbsmax, setPlOrbsmax] = useState<number | undefined>(undefined);
+  const [plDensity, setPlDensity] = useState<number | undefined>(undefined);
+  const [depthRatio, setDepthRatio] = useState<number | undefined>(undefined);
+  const [snrQuality, setSnrQuality] = useState<number | undefined>(undefined);
+  const [transitSignal, setTransitSignal] = useState<number | undefined>(undefined);
+  const [hzRatio, setHzRatio] = useState<number | undefined>(undefined);
+  const [stMassProxy, setStMassProxy] = useState<number | undefined>(undefined);
+
+  // Tri-state flags: undefined (unset), 0 (no), 1 (yes)
+  const [fpFlagNt, setFpFlagNt] = useState<number | undefined>(undefined);
+  const [fpFlagCo, setFpFlagCo] = useState<number | undefined>(undefined);
+  const [fpFlagSs, setFpFlagSs] = useState<number | undefined>(undefined);
+  const [fpFlagEc, setFpFlagEc] = useState<number | undefined>(undefined);
+  const [fpFlagAny, setFpFlagAny] = useState<number | undefined>(undefined);
+
   // Validation function
   const validateParameters = useCallback(() => {
     const errors: ValidationError[] = [];
@@ -199,6 +225,25 @@ export default function Classifier() {
     }
   };
 
+  // Small info hint component
+  const InfoHint = ({ text }: { text: string }) => (
+    <UiTooltip>
+      <UiTooltipTrigger asChild>
+        <span className="ml-2 inline-flex items-center justify-center rounded-sm bg-primary/15 text-primary text-[10px] font-semibold w-4 h-4 cursor-help">i</span>
+      </UiTooltipTrigger>
+      <UiTooltipContent className="text-xs max-w-xs">{text}</UiTooltipContent>
+    </UiTooltip>
+  );
+
+  // Manual input handlers
+  const handleManualInput = (value: string, setter: (val: number[]) => void, _paramKey: string) => {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      // Allow free numeric input without clamping to slider ranges
+      setter([numValue]);
+    }
+  };
+
   // CSV file processing
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -213,36 +258,112 @@ export default function Classifier() {
     }
   }, []);
 
-  // Parse CSV content
+  // Parse CSV content (flexible headers like exoplanet-classifier)
   const parseCsvContent = (content: string): Record<string, any>[] => {
-    const lines = content.trim().split('\n');
+    const lines = content.trim().split(/\r?\n/);
     if (lines.length < 2) {
       throw new Error('CSV file must have at least a header row and one data row.');
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const requiredColumns = ['orbital_period', 'planet_radius', 'transit_depth', 'transit_duration', 
-                           'planet_mass', 'stellar_temperature', 'stellar_radius', 'system_distance'];
-    
-    const missingColumns = requiredColumns.filter(col => !headers.includes(col));
-    if (missingColumns.length > 0) {
-      throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+    // Normalize header names
+    const rawHeaders = lines[0].split(',');
+    const normalize = (h: string) => h.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const headers = rawHeaders.map(h => normalize(h));
+
+    // Canonical base feature names used by UI visualizations
+    const canonicalBase = ['orbital_period','planet_radius','transit_depth','transit_duration','planet_mass','stellar_temperature','stellar_radius','system_distance'];
+
+    // Map various synonyms to our canonical base keys
+    const baseSynonyms: Record<string, string> = {
+      // orbital period
+      'pl_orbper': 'orbital_period',
+      'orbital_period': 'orbital_period',
+      'orbitalperiod': 'orbital_period',
+      'orbital_period_days': 'orbital_period',
+      // planet radius
+      'pl_rade': 'planet_radius',
+      'planet_radius': 'planet_radius',
+      'planetradius': 'planet_radius',
+      'planet_radius_earth_radii': 'planet_radius',
+      // transit depth
+      'pl_trandep': 'transit_depth',
+      'transit_depth': 'transit_depth',
+      'transitdepth': 'transit_depth',
+      'depth_ppm': 'transit_depth',
+      // transit duration
+      'pl_trandur': 'transit_duration',
+      'transit_duration': 'transit_duration',
+      'transitduration': 'transit_duration',
+      'duration_hours': 'transit_duration',
+      // planet mass
+      'pl_bmasse': 'planet_mass',
+      'planet_mass': 'planet_mass',
+      'planetmass': 'planet_mass',
+      // stellar temp
+      'st_teff': 'stellar_temperature',
+      'stellar_temperature': 'stellar_temperature',
+      'stellartemperature': 'stellar_temperature',
+      // stellar radius
+      'st_rad': 'stellar_radius',
+      'stellar_radius': 'stellar_radius',
+      'stellarradius': 'stellar_radius',
+      // system distance
+      'sy_dist': 'system_distance',
+      'system_distance': 'system_distance',
+      'systemdistance': 'system_distance',
+      'distance_pc': 'system_distance',
+    };
+
+    // Optional advanced columns (accept as-is if present)
+    const optionalColumns = [
+      'pl_insol','pl_eqt','st_slogg','pl_impact','pl_snr','transit_count','koi_score','pl_orbsmax',
+      'pl_density','depth_ratio','snr_quality','transit_signal','hz_ratio','st_mass_proxy',
+      'fp_flag_nt','fp_flag_co','fp_flag_ss','fp_flag_ec','fp_flag_any'
+    ];
+
+    // Build an index mapping from canonical/optional keys to column index
+    const indexMap: Record<string, number> = {};
+    headers.forEach((h, i) => {
+      const canonical = baseSynonyms[h];
+      if (canonical) indexMap[canonical] = i;
+      if (optionalColumns.includes(h)) indexMap[h] = i;
+      // Also keep original normalized header if not matched
+      if (!canonical && !optionalColumns.includes(h)) {
+        // no-op, unknown columns ignored
+      }
+    });
+
+    // If none of the core base columns exist, show a helpful error
+    const hasAnyBase = canonicalBase.some(k => indexMap[k] !== undefined);
+    if (!hasAnyBase) {
+      throw new Error('CSV must include at least one core column (e.g., orbital_period/pl_orbper, planet_radius/pl_rade, etc.). Headers are case-insensitive and flexible.');
     }
 
     return lines.slice(1).map((line, index) => {
+      if (!line.trim()) return { id: index + 1 };
       const values = line.split(',').map(v => v.trim());
       const row: Record<string, any> = { id: index + 1 };
-      
-      headers.forEach((header, i) => {
-        if (requiredColumns.includes(header)) {
-          const value = parseFloat(values[i]);
-          if (isNaN(value)) {
-            throw new Error(`Invalid numeric value in row ${index + 2}, column '${header}': ${values[i]}`);
-          }
-          row[header] = value;
-        }
+
+      // Fill canonical base keys if present
+      canonicalBase.forEach((key) => {
+        const col = indexMap[key];
+        if (col === undefined) return;
+        const v = values[col];
+        if (v === undefined || v === '') return;
+        const num = parseFloat(v);
+        if (!Number.isNaN(num)) row[key] = num;
       });
-      
+
+      // Fill optional advanced keys
+      optionalColumns.forEach((key) => {
+        const col = indexMap[key];
+        if (col === undefined) return;
+        const v = values[col];
+        if (v === undefined || v === '') return;
+        const num = parseFloat(v);
+        if (!Number.isNaN(num)) row[key] = num;
+      });
+
       return row;
     });
   };
@@ -289,7 +410,7 @@ export default function Classifier() {
   };
 
   // Single planet classification
-  const handleClassification = () => {
+  const handleClassification = async () => {
     if (!validateParameters()) {
       toast({
         title: "Validation Error",
@@ -299,45 +420,106 @@ export default function Classifier() {
       return;
     }
 
-    const planetData = {
-      orbital_period: orbitalPeriod[0],
-      planet_radius: planetRadius[0],
-      transit_depth: transitDepth[0],
-      transit_duration: transitDuration[0],
-      planet_mass: planetMass[0],
-      stellar_temperature: stellarTemp[0],
-      stellar_radius: stellarRadius[0],
-      system_distance: systemDistance[0]
+    // Map UI fields to backend expected payload (PredictionRequest)
+    const payload: Record<string, number> = {
+      pl_orbper: orbitalPeriod[0],
+      pl_rade: planetRadius[0],
+      pl_trandep: transitDepth[0],
+      pl_trandur: transitDuration[0],
+      pl_bmasse: planetMass[0],
+      st_teff: stellarTemp[0],
+      st_rad: stellarRadius[0],
+      sy_dist: systemDistance[0],
     };
-    
+
+    // Include advanced fields only if provided
+    const advanced: Record<string, number | undefined> = {
+      pl_insol: plInsol,
+      pl_eqt: plEqt,
+      st_slogg: stSlogg,
+      pl_impact: plImpact,
+      pl_snr: plSnr,
+      transit_count: transitCount,
+      koi_score: koiScore,
+      pl_orbsmax: plOrbsmax,
+      pl_density: plDensity,
+      depth_ratio: depthRatio,
+      snr_quality: snrQuality,
+      transit_signal: transitSignal,
+      hz_ratio: hzRatio,
+      st_mass_proxy: stMassProxy,
+      fp_flag_nt: fpFlagNt,
+      fp_flag_co: fpFlagCo,
+      fp_flag_ss: fpFlagSs,
+      fp_flag_ec: fpFlagEc,
+      fp_flag_any: fpFlagAny,
+    };
+    Object.entries(advanced).forEach(([k, v]) => {
+      if (typeof v === 'number' && !Number.isNaN(v)) payload[k] = v;
+    });
+
     setIsAnalyzing(true);
-    console.log('Classifying exoplanet with data:', planetData);
-    
-    // Simulate API call with enhanced mock result
-    setTimeout(() => {
-      const mockResult: ClassificationResult = {
-        planet_type: planetRadius[0] > 4 ? "Gas Giant" : 
-                    planetRadius[0] > 2 ? "Neptune-like" : 
-                    planetRadius[0] > 1.5 ? "Super-Earth" : "Earth-like",
-        confidence: 85 + Math.random() * 10,
-        habitability_score: stellarTemp[0] > 4000 && stellarTemp[0] < 7000 && 
-                           orbitalPeriod[0] > 200 && orbitalPeriod[0] < 600 ? 
-                           70 + Math.random() * 25 : 20 + Math.random() * 40,
-        size_category: planetRadius[0] > 4 ? "Jupiter-sized" : 
-                      planetRadius[0] > 2 ? "Neptune-sized" : 
-                      planetRadius[0] > 1.25 ? "Super-Earth" : "Earth-sized",
-        temperature: Math.round(stellarTemp[0] * Math.pow(stellarRadius[0] / Math.sqrt(orbitalPeriod[0] / 365.25), 0.5))
+    try {
+      // Optional warm-up (safe no-op if backend is down)
+      // await getHealth();
+
+      const response: PredictionResponse = await predictSingle(payload);
+      const item = response.predictions[0];
+
+      // Backend confidence is typically 0..1 — convert to % if needed
+      const confidencePct = item.confidence <= 1 ? item.confidence * 100 : item.confidence;
+      const habitability = (() => {
+        const probConfirmed = item.probabilities?.CONFIRMED ?? item.probabilities?.Confirmed ?? undefined;
+        if (typeof probConfirmed === 'number') return probConfirmed * 100;
+        return confidencePct;
+      })();
+
+      const mapped: ClassificationResult = {
+        planet_type: item.prediction,
+        confidence: confidencePct,
+        habitability_score: habitability,
+        size_category:
+          planetRadius[0] > 4
+            ? "Jupiter-sized"
+            : planetRadius[0] > 2
+            ? "Neptune-sized"
+            : planetRadius[0] > 1.25
+            ? "Super-Earth"
+            : "Earth-sized",
+        temperature: Math.round(
+          stellarTemp[0] * Math.pow(stellarRadius[0] / Math.sqrt(orbitalPeriod[0] / 365.25), 0.5)
+        ),
       };
-      
-      setResult(mockResult);
-      addToHistory(planetData, mockResult);
-      setIsAnalyzing(false);
-      
+
+      setResult(mapped);
+      addToHistory(
+        {
+          orbital_period: orbitalPeriod[0],
+          planet_radius: planetRadius[0],
+          transit_depth: transitDepth[0],
+          transit_duration: transitDuration[0],
+          planet_mass: planetMass[0],
+          stellar_temperature: stellarTemp[0],
+          stellar_radius: stellarRadius[0],
+          system_distance: systemDistance[0],
+        },
+        mapped
+      );
+
       toast({
         title: "Classification Complete",
-        description: `Planet classified as ${mockResult.planet_type} with ${mockResult.confidence.toFixed(1)}% confidence.`
+        description: `Planet classified as ${mapped.planet_type} with ${mapped.confidence.toFixed(1)}% confidence.`,
       });
-    }, 2000);
+    } catch (err: any) {
+      console.error("Single prediction error:", err);
+      toast({
+        title: "Prediction Error",
+        description: err?.message || "Failed to classify exoplanet.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Batch classification
@@ -352,52 +534,57 @@ export default function Classifier() {
     console.log('Starting batch analysis with file:', csvFile.name);
 
     try {
+      // Keep parsing locally so we can power the visualizations
       const content = await csvFile.text();
-      console.log('CSV content loaded, parsing...');
-      
       const data = parseCsvContent(content);
-      console.log('Parsed CSV data:', data);
       setBatchRows(data);
-      
-      // Simulate processing delay
-      setTimeout(() => {
-        const results: BatchResult[] = data.map((row, index) => ({
-          id: row.id,
+
+      // Send file to backend
+      const resp = await predictCSV(csvFile);
+
+      // Map backend predictions to our BatchResult shape, aligning by row index if present
+      const results: BatchResult[] = resp.predictions.map((p, i) => {
+        const row = data[i] ?? {};
+        const confPct = p.confidence <= 1 ? p.confidence * 100 : p.confidence;
+        const probConfirmed = p.probabilities?.CONFIRMED ?? p.probabilities?.Confirmed;
+        const habitability = typeof probConfirmed === 'number' ? probConfirmed * 100 : confPct;
+        const pr = typeof row.planet_radius === 'number' ? row.planet_radius : undefined;
+        const sr = typeof row.stellar_radius === 'number' ? row.stellar_radius : undefined;
+        const op = typeof row.orbital_period === 'number' ? row.orbital_period : undefined;
+        const st = typeof row.stellar_temperature === 'number' ? row.stellar_temperature : undefined;
+
+        const sizeCategory = pr && (pr > 4 ? "Jupiter-sized" : pr > 2 ? "Neptune-sized" : pr > 1.25 ? "Super-Earth" : "Earth-sized");
+        const temperature = st && sr && op
+          ? Math.round(st * Math.pow(sr / Math.sqrt(op / 365.25), 0.5))
+          : 0;
+
+        return {
+          id: row.id ?? i + 1,
           timestamp: new Date().toISOString(),
-          planet_type: row.planet_radius > 4 ? "Gas Giant" : 
-                      row.planet_radius > 2 ? "Neptune-like" : 
-                      row.planet_radius > 1.5 ? "Super-Earth" : "Earth-like",
-          confidence: 80 + Math.random() * 15,
-          habitability_score: row.stellar_temperature > 4000 && row.stellar_temperature < 7000 && 
-                             row.orbital_period > 200 && row.orbital_period < 600 ? 
-                             60 + Math.random() * 30 : 15 + Math.random() * 40,
-          size_category: row.planet_radius > 4 ? "Jupiter-sized" : 
-                        row.planet_radius > 2 ? "Neptune-sized" : 
-                        row.planet_radius > 1.25 ? "Super-Earth" : "Earth-sized",
-          temperature: Math.round(row.stellar_temperature * Math.pow(row.stellar_radius / Math.sqrt(row.orbital_period / 365.25), 0.5))
-        }));
-        
-        setBatchResults(results);
-        setIsAnalyzing(false);
-        
-        toast({
-          title: "Batch Analysis Complete",
-          description: `Successfully classified ${results.length} exoplanets.`
-        });
-        
-        console.log('Batch analysis results:', results);
-      }, 3000);
-      
+          planet_type: p.prediction,
+          confidence: confPct,
+          habitability_score: habitability,
+          size_category: sizeCategory || "",
+          temperature,
+        } as BatchResult;
+      });
+
+      setBatchResults(results);
+
+      toast({
+        title: "Batch Analysis Complete",
+        description: `Successfully classified ${results.length} exoplanets.`,
+      });
     } catch (error: any) {
       console.error('Batch analysis error:', error);
       setUploadError(error.message);
-      setIsAnalyzing(false);
-      
       toast({
         title: "Batch Analysis Error",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -630,17 +817,27 @@ export default function Classifier() {
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                     }
                   </Label>
-                  <Slider
-                    id="orbital-period"
-                    value={orbitalPeriod}
-                    onValueChange={setOrbitalPeriod}
-                    max={PARAMETER_RANGES.orbital_period.max}
-                    min={PARAMETER_RANGES.orbital_period.min}
-                    step={PARAMETER_RANGES.orbital_period.step}
-                    className={`w-full ${
-                      validationErrors.some(e => e.parameter === 'orbital_period') ? 'border-red-500' : ''
-                    }`}
-                  />
+                  <div className="space-y-2">
+                  <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={orbitalPeriod[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setOrbitalPeriod, 'orbital_period')}
+                      step={PARAMETER_RANGES.orbital_period.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="orbital-period"
+                      value={orbitalPeriod}
+                      onValueChange={setOrbitalPeriod}
+                      max={PARAMETER_RANGES.orbital_period.max}
+                      min={PARAMETER_RANGES.orbital_period.min}
+                      step={PARAMETER_RANGES.orbital_period.step}
+                      className={`w-full ${
+                        validationErrors.some(e => e.parameter === 'orbital_period') ? 'border-red-500' : ''
+                      }`}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-4">
                   <Label htmlFor="planet-radius" className={`flex items-center gap-2 text-base font-medium ${
@@ -651,17 +848,27 @@ export default function Classifier() {
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                     }
                   </Label>
-                  <Slider
-                    id="planet-radius"
-                    value={planetRadius}
-                    onValueChange={setPlanetRadius}
-                    max={PARAMETER_RANGES.planet_radius.max}
-                    min={PARAMETER_RANGES.planet_radius.min}
-                    step={PARAMETER_RANGES.planet_radius.step}
-                    className={`w-full ${
-                      validationErrors.some(e => e.parameter === 'planet_radius') ? 'border-red-500' : ''
-                    }`}
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={planetRadius[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setPlanetRadius, 'planet_radius')}
+                      step={PARAMETER_RANGES.planet_radius.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="planet-radius"
+                      value={planetRadius}
+                      onValueChange={setPlanetRadius}
+                      max={PARAMETER_RANGES.planet_radius.max}
+                      min={PARAMETER_RANGES.planet_radius.min}
+                      step={PARAMETER_RANGES.planet_radius.step}
+                      className={`w-full ${
+                        validationErrors.some(e => e.parameter === 'planet_radius') ? 'border-red-500' : ''
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -671,30 +878,50 @@ export default function Classifier() {
                   <Label htmlFor="transit-depth" className="flex items-center gap-2 text-base font-medium">
                     Transit Depth (ppm): {transitDepth[0].toFixed(0)}
                   </Label>
-                  <Slider
-                    id="transit-depth"
-                    value={transitDepth}
-                    onValueChange={setTransitDepth}
-                    max={5000}
-                    min={10}
-                    step={10}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={transitDepth[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setTransitDepth, 'transit_depth')}
+                      step={PARAMETER_RANGES.transit_depth.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="transit-depth"
+                      value={transitDepth}
+                      onValueChange={setTransitDepth}
+                      max={5000}
+                      min={10}
+                      step={10}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <Label htmlFor="transit-duration" className="flex items-center gap-2 text-base font-medium">
                     Transit Duration (hours): {transitDuration[0].toFixed(1)}
                   </Label>
-                  <Slider
-                    id="transit-duration"
-                    value={transitDuration}
-                    onValueChange={setTransitDuration}
-                    max={12}
-                    min={0.5}
-                    step={0.1}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={transitDuration[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setTransitDuration, 'transit_duration')}
+                      step={PARAMETER_RANGES.transit_duration.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="transit-duration"
+                      value={transitDuration}
+                      onValueChange={setTransitDuration}
+                      max={12}
+                      min={0.5}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -704,29 +931,49 @@ export default function Classifier() {
                   <Label htmlFor="planet-mass" className="flex items-center gap-2 text-base font-medium">
                     Planet Mass (Earth masses): {planetMass[0].toFixed(2)}
                   </Label>
-                  <Slider
-                    id="planet-mass"
-                    value={planetMass}
-                    onValueChange={setPlanetMass}
-                    max={10}
-                    min={0.01}
-                    step={0.01}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={planetMass[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setPlanetMass, 'planet_mass')}
+                      step={PARAMETER_RANGES.planet_mass.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="planet-mass"
+                      value={planetMass}
+                      onValueChange={setPlanetMass}
+                      max={10}
+                      min={0.01}
+                      step={0.01}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-4">
                   <Label htmlFor="stellar-temp" className="flex items-center gap-2 text-base font-medium">
                     Stellar Temperature (K): {stellarTemp[0].toFixed(0)}
                   </Label>
-                  <Slider
-                    id="stellar-temp"
-                    value={stellarTemp}
-                    onValueChange={setStellarTemp}
-                    max={10000}
-                    min={2000}
-                    step={50}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={stellarTemp[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setStellarTemp, 'stellar_temperature')}
+                      step={PARAMETER_RANGES.stellar_temperature.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="stellar-temp"
+                      value={stellarTemp}
+                      onValueChange={setStellarTemp}
+                      max={10000}
+                      min={2000}
+                      step={50}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -736,29 +983,49 @@ export default function Classifier() {
                   <Label htmlFor="stellar-radius" className="flex items-center gap-2 text-base font-medium">
                     Stellar Radius (Solar radii): {stellarRadius[0].toFixed(2)}
                   </Label>
-                  <Slider
-                    id="stellar-radius"
-                    value={stellarRadius}
-                    onValueChange={setStellarRadius}
-                    max={5}
-                    min={0.1}
-                    step={0.01}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={stellarRadius[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setStellarRadius, 'stellar_radius')}
+                      step={PARAMETER_RANGES.stellar_radius.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="stellar-radius"
+                      value={stellarRadius}
+                      onValueChange={setStellarRadius}
+                      max={5}
+                      min={0.1}
+                      step={0.01}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-4">
                   <Label htmlFor="system-distance" className="flex items-center gap-2 text-base font-medium">
                     System Distance (pc): {systemDistance[0].toFixed(0)}
                   </Label>
-                  <Slider
-                    id="system-distance"
-                    value={systemDistance}
-                    onValueChange={setSystemDistance}
-                    max={1000}
-                    min={1}
-                    step={1}
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter value"
+                      value={systemDistance[0]}
+                      onChange={(e) => handleManualInput(e.target.value, setSystemDistance, 'system_distance')}
+                      step={PARAMETER_RANGES.system_distance.step}
+                      className="w-full"
+                    />
+                    <Slider
+                      id="system-distance"
+                      value={systemDistance}
+                      onValueChange={setSystemDistance}
+                      max={1000}
+                      min={1}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -779,6 +1046,14 @@ export default function Classifier() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="text-xs"
+                >
+                  {showAdvanced ? "Hide" : "Show"} Advanced Quality Inputs
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowComparison(!showComparison)}
                   className="text-xs"
                 >
@@ -794,12 +1069,126 @@ export default function Classifier() {
                 </Button>
               </div>
 
+              {/* Advanced Inputs */}
+              {showAdvanced && (
+                <Card className="mt-6">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-medium">Advanced Quality Inputs</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        // Prefill good-quality defaults
+                        setPlSnr(35);
+                        setKoiScore(0.9);
+                        setFpFlagNt(0);
+                        setFpFlagSs(0);
+                        setFpFlagCo(0);
+                        setFpFlagEc(0);
+                        setPlImpact(0.5);
+                        setStSlogg(4.4);
+                        setPlEqt(800);
+                        setPlInsol(100);
+                        setTransitCount(3);
+                      }} className="text-xs">★ Prefill good-quality defaults</Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {/* Row: SNR, koi_score, Not transit-like flag */}
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Transit Signal-to-Noise (SNR)<InfoHint text="Higher SNR generally indicates a clearer transit signal." /></Label>
+                        <Input placeholder="e.g., 35" type="number" value={plSnr ?? ''} onChange={(e)=>setPlSnr(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Disposition Score (0-1)<InfoHint text="Disposition/confidence score from vetting systems (0 to 1)." /></Label>
+                        <Input placeholder="e.g., 0.9" type="number" step="0.01" value={koiScore ?? ''} onChange={(e)=>setKoiScore(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Not Transit-Like Flag (0/1)<InfoHint text="1 indicates not-transit-like; 0 is transit-like." /></Label>
+                        <Input placeholder="0 or 1" type="number" value={fpFlagNt ?? ''} onChange={(e)=>setFpFlagNt(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+
+                      {/* Row: Stellar eclipse, Centroid offset, Ephemeris match */}
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Stellar Eclipse Flag (0/1)<InfoHint text="Flag if likely an eclipsing binary." /></Label>
+                        <Input placeholder="0 or 1" type="number" value={fpFlagSs ?? ''} onChange={(e)=>setFpFlagSs(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Centroid Offset Flag (0/1)<InfoHint text="Flag if centroid offset suggests background object." /></Label>
+                        <Input placeholder="0 or 1" type="number" value={fpFlagCo ?? ''} onChange={(e)=>setFpFlagCo(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Ephemeris Match Flag (0/1)<InfoHint text="Flag if event matches an ephemeris indicating false positive." /></Label>
+                        <Input placeholder="0 or 1" type="number" value={fpFlagEc ?? ''} onChange={(e)=>setFpFlagEc(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+
+                      {/* Row: Impact parameter, logg, eqt */}
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Impact Parameter<InfoHint text="Normalized transit impact parameter (0 at center, ~1 at limb)." /></Label>
+                        <Input placeholder="e.g., 0.5" type="number" step="0.01" value={plImpact ?? ''} onChange={(e)=>setPlImpact(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Stellar log(g)<InfoHint text="Stellar surface gravity in log10(cm/s^2)." /></Label>
+                        <Input placeholder="e.g., 4.4" type="number" step="0.01" value={stSlogg ?? ''} onChange={(e)=>setStSlogg(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Equilibrium Temperature (K)<InfoHint text="Estimated planet equilibrium temperature in Kelvin." /></Label>
+                        <Input placeholder="e.g., 800" type="number" value={plEqt ?? ''} onChange={(e)=>setPlEqt(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+
+                      {/* Row: Insolation, transits */}
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Insolation Flux (Earth flux)<InfoHint text="Stellar irradiance relative to Earth's." /></Label>
+                        <Input placeholder="e.g., 100" type="number" value={plInsol ?? ''} onChange={(e)=>setPlInsol(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Number of Transits<InfoHint text="Count of observed transit events." /></Label>
+                        <Input placeholder="e.g., 3" type="number" value={transitCount ?? ''} onChange={(e)=>setTransitCount(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Overall False-Positive Flag (0/1)<InfoHint text="Any false-positive flag triggered." /></Label>
+                        <Input placeholder="0 or 1" type="number" value={fpFlagAny ?? ''} onChange={(e)=>setFpFlagAny(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+
+                      {/* Additional optional metrics */}
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Semi-major Axis (AU)<InfoHint text="Orbital semi-major axis." /></Label>
+                        <Input placeholder="optional" type="number" value={plOrbsmax ?? ''} onChange={(e)=>setPlOrbsmax(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Planet Density (g/cm³)<InfoHint text="Estimated bulk density." /></Label>
+                        <Input placeholder="optional" type="number" value={plDensity ?? ''} onChange={(e)=>setPlDensity(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Depth Ratio<InfoHint text="Derived lightcurve depth ratio metric." /></Label>
+                        <Input placeholder="optional" type="number" value={depthRatio ?? ''} onChange={(e)=>setDepthRatio(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">SNR Quality<InfoHint text="Quality score for SNR metric." /></Label>
+                        <Input placeholder="optional" type="number" value={snrQuality ?? ''} onChange={(e)=>setSnrQuality(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Transit Signal<InfoHint text="Additional transit signal strength metric." /></Label>
+                        <Input placeholder="optional" type="number" value={transitSignal ?? ''} onChange={(e)=>setTransitSignal(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Habitable Zone Ratio<InfoHint text="Distance relative to star's habitable zone." /></Label>
+                        <Input placeholder="optional" type="number" value={hzRatio ?? ''} onChange={(e)=>setHzRatio(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-foreground">Stellar Mass Proxy<InfoHint text="Proxy for stellar mass used in model." /></Label>
+                        <Input placeholder="optional" type="number" value={stMassProxy ?? ''} onChange={(e)=>setStMassProxy(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Classify Button */}
               <div className="flex justify-center pt-8">
                 <Button
                   size="lg"
                   onClick={handleClassification}
-                  disabled={isAnalyzing || validationErrors.length > 0}
+                  disabled={isAnalyzing}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
                 >
                   {isAnalyzing ? (
@@ -853,8 +1242,9 @@ export default function Classifier() {
                   Drop your file here or click to browse
                 </p>
                 <div className="text-xs text-muted-foreground">
-                  Required columns: orbital_period, planet_radius, transit_depth, transit_duration, 
-                  planet_mass, stellar_temperature, stellar_radius, system_distance
+                  Headers are flexible. Include any of: orbital_period/pl_orbper, planet_radius/pl_rade,
+                  transit_depth/pl_trandep, transit_duration/pl_trandur, planet_mass/pl_bmasse,
+                  stellar_temperature/st_teff, stellar_radius/st_rad, system_distance/sy_dist.
                 </div>
                 {csvFile && (
                   <div className="mt-4 flex items-center justify-center gap-2">
@@ -884,6 +1274,90 @@ export default function Classifier() {
                   )}
                 </Button>
               </div>
+
+              {/* Batch File Details Panel */}
+              {batchRows.length > 0 && (
+                <Card className="mt-4">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Batch File Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><span className="text-muted-foreground">File:</span> <strong>{csvFile?.name}</strong></div>
+                      <div><span className="text-muted-foreground">Uploaded:</span> <strong>{new Date().toLocaleString()}</strong></div>
+                      <div><span className="text-muted-foreground">Total Rows:</span> <strong>{batchRows.length}</strong></div>
+                      <div><span className="text-muted-foreground">Size:</span> <strong>{csvFile ? `${(csvFile.size/1024).toFixed(1)} KB` : '-'}</strong></div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground mb-1">Detected Columns</div>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(batchRows[0] || {}).slice(0, 24).map((c) => (
+                          <span key={c} className="px-2 py-1 rounded bg-secondary text-secondary-foreground text-xs border border-border">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground mb-1">Sample Data (First 3 Rows)</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-muted-foreground">
+                              <th className="py-1 pr-2">#</th>
+                              <th className="py-1 pr-2">Period</th>
+                              <th className="py-1 pr-2">Radius</th>
+                              <th className="py-1 pr-2">Class</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(batchResults.slice(0,3)).map((r, i) => (
+                              <tr key={i} className="border-t border-border">
+                                <td className="py-1 pr-2">{i+1}</td>
+                                <td className="py-1 pr-2">{(batchRows[i]?.orbital_period ?? (batchRows[i] as any)?.pl_orbper) ?? '-'}</td>
+                                <td className="py-1 pr-2">{(batchRows[i]?.planet_radius ?? (batchRows[i] as any)?.pl_rade) ?? '-'}</td>
+                                <td className="py-1 pr-2">{r.planet_type}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Planet Details Accordion */}
+              {batchResults.length > 0 && (
+                <Card className="mt-4">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Planet Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {batchResults.map((r, i) => {
+                      const row: any = batchRows[i] || {};
+                      const name = row.pl_name || row.planet_name || `Planet ${i+1}`;
+                      const koi = row.kepid || row.koi_name || 'N/A';
+                      const [open, setOpen] = [undefined, undefined] as any; // placeholder to satisfy TS inline map
+                      return (
+                        <details key={i} className="rounded border border-border p-2 bg-card/60" open={false as any}>
+                          <summary className="cursor-pointer flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">#{i+1}</span>
+                              <span className="font-medium">{name}</span>
+                            </div>
+                            <span className="text-xs px-2 py-1 rounded bg-secondary border border-border">{r.planet_type} • {r.confidence.toFixed(1)}%</span>
+                          </summary>
+                          <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                            <div><span className="text-muted-foreground">KOI ID:</span> <strong>{koi}</strong></div>
+                            <div><span className="text-muted-foreground">Period:</span> <strong>{(row.orbital_period ?? row.pl_orbper) ?? '-'}</strong> d</div>
+                            <div><span className="text-muted-foreground">Radius:</span> <strong>{(row.planet_radius ?? row.pl_rade) ?? '-'}</strong> R⊕</div>
+                            <div><span className="text-muted-foreground">Transit Depth:</span> <strong>{(row.transit_depth ?? row.pl_trandep) ?? '-'}</strong> ppm</div>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </motion.div>
