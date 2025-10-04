@@ -88,10 +88,12 @@ export default function Hero() {
           <div
             className="w-full flex relative overflow-hidden h-48 md:h-80 lg:h-[420px]"
           >
-            <img
-              src={earthImage}
-              alt="Earth"
-              className="absolute top-0 left-0 -z-10 w-full h-full object-cover object-top opacity-90 select-none pointer-events-none"
+            <iframe 
+              src='https://my.spline.design/worldplanet-ACy9j4dwrbm6RTBiCz8JGpFz/' 
+              frameBorder='0' 
+              width='100%' 
+              height='100%'
+              className="absolute top-0 left-0 -z-10 w-full h-full opacity-90 select-none pointer-events-none"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to bottom, black 65%, transparent 100%)",
