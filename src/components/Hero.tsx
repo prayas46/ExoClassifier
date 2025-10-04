@@ -89,17 +89,36 @@ export default function Hero() {
             className="w-full flex relative overflow-hidden h-48 md:h-80 lg:h-[420px]"
           >
             <iframe 
-              src='https://my.spline.design/worldplanet-ACy9j4dwrbm6RTBiCz8JGpFz/' 
+              src='https://my.spline.design/glowingplanetparticles-eZDupH8QhJfdVHRHNGdj9vvA/' 
               frameBorder='0' 
               width='100%' 
               height='100%'
               className="absolute top-0 left-0 -z-10 w-full h-full opacity-90 select-none pointer-events-none"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to bottom, black 65%, transparent 100%)",
-                maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+                  "linear-gradient(to bottom, black 60%, transparent 100%)",
+                maskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
+                transform: "translateY(-10%)",
               }}
             />
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                iframe[src*="spline.design"] {
+                  position: relative;
+                }
+                iframe[src*="spline.design"]::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 0;
+                  right: 0;
+                  width: 200px;
+                  height: 50px;
+                  background: linear-gradient(135deg, hsl(250 24% 5%) 0%, hsl(260 30% 10%) 100%);
+                  pointer-events: none;
+                  z-index: 10;
+                }
+              `
+            }} />
           </div>
 
           <ContainerScroll
