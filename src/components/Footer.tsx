@@ -60,32 +60,32 @@ export function Footer() {
 			<div className="bg-primary/30 absolute top-0 right-1/2 left-1/2 h-px w-1/3 -translate-x-1/2 -translate-y-1/2 rounded-full blur" />
 
 			<div className="grid w-full max-w-6xl mx-auto gap-8 xl:grid-cols-3 xl:gap-8">
-				<AnimatedContainer className="space-y-4">
+				<AnimatedContainer className="space-y-3">
 					<div className="flex items-center gap-2">
-						<Rocket className="size-8 text-primary" />
-						<span className="text-xl font-bold text-primary">ExoClass</span>
+						<Rocket className="size-7 text-primary" />
+						<span className="text-lg font-bold text-primary">ExoClass</span>
 					</div>
-					<p className="text-muted-foreground mt-8 text-sm md:mt-0">
-						Discover exoplanets with AI-powered classification using NASA's K2, Kepler, and TESS datasets.
+					<p className="text-muted-foreground text-xs leading-relaxed md:mt-0">
+						AI-powered exoplanet classification using NASA datasets.
 					</p>
 					<p className="text-muted-foreground text-xs">
-						© {new Date().getFullYear()} ExoClass. All rights reserved.
+						© {new Date().getFullYear()} ExoClass
 					</p>
 				</AnimatedContainer>
 
 				<div className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-4 xl:col-span-2 xl:mt-0">
 					{footerLinks.map((section, index) => (
-						<AnimatedContainer key={section.label} delay={0.1 + index * 0.1}>
-							<div className="mb-10 md:mb-0">
-								<h3 className="text-xs font-semibold text-primary mb-4">{section.label}</h3>
-								<ul className="text-muted-foreground mt-4 space-y-2 text-sm">
+						<AnimatedContainer key={section.label} delay={0.1 + index * 0.05}>
+							<div className="mb-8 md:mb-0">
+								<h3 className="text-xs font-semibold text-primary mb-3 uppercase tracking-wide">{section.label}</h3>
+								<ul className="text-muted-foreground mt-3 space-y-1.5 text-xs">
 									{section.links.map((link) => (
 										<li key={link.title}>
 											<a
 												href={link.href}
-												className="hover:text-primary inline-flex items-center transition-all duration-300 hover:translate-x-1"
+												className="hover:text-primary inline-flex items-center transition-colors duration-200"
 											>
-												{link.icon && <link.icon className="me-2 size-4" />}
+												{link.icon && <link.icon className="me-1.5 size-3.5" />}
 												{link.title}
 											</a>
 										</li>
@@ -97,21 +97,19 @@ export function Footer() {
 				</div>
 			</div>
 
-			{/* Additional space-themed decoration */}
-			<div className="mt-8 flex items-center gap-4 text-xs text-muted-foreground">
-				<div className="flex items-center gap-1">
-					<span>Powered by NASA Data</span>
-				</div>
-				<div className="w-px h-4 bg-border" />
+			{/* Tech stack */}
+			<div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
 				<div className="flex items-center gap-1">
 					<Database className="size-3" />
-					<span>Machine Learning</span>
+					<span>NASA Data</span>
 				</div>
-				<div className="w-px h-4 bg-border" />
+				<div className="w-px h-3 bg-border" />
 				<div className="flex items-center gap-1">
 					<BookOpen className="size-3" />
-					<span>Open Source</span>
+					<span>ML Powered</span>
 				</div>
+				<div className="w-px h-3 bg-border" />
+				<span>Open Source</span>
 			</div>
 		</footer>
 	);

@@ -49,7 +49,7 @@ export default function Classifier() {
   };
 
   return (
-    <section className="relative w-full py-20 px-4">
+    <section id="classifier" className="relative w-full py-20 px-4 bg-background">
       <div className="container mx-auto max-w-6xl">
         {/* Tab Buttons */}
         <motion.div
@@ -89,15 +89,15 @@ export default function Classifier() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-card rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
+          className="bg-card rounded-2xl p-8 md:p-10 shadow-xl border border-border"
         >
-          <h2 className="text-3xl md:text-4xl font-light text-primary mb-4">
+          <h2 className="text-3xl md:text-4xl font-light mb-2">
             {mode === "single" ? "Single Planet Analysis" : "Batch Analysis"}
           </h2>
-          <p className="text-muted-foreground mb-8">
+          <p className="text-muted-foreground text-sm mb-8">
             {mode === "single"
-              ? "Enter the parameters of an exoplanet to get its classification. You don't need to fill all fields - the model will use available data."
-              : "Upload a CSV file with multiple exoplanet observations for batch classification."}
+              ? "Adjust parameters to analyze an exoplanet candidate"
+              : "Upload CSV file for batch classification"}
           </p>
 
           {mode === "single" ? (
@@ -241,11 +241,11 @@ export default function Classifier() {
               </div>
 
               {/* Classify Button */}
-              <div className="flex justify-center pt-6">
+              <div className="flex justify-center pt-4">
                 <Button
                   size="lg"
                   onClick={handleClassification}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all"
+                  className="rounded-full px-10 py-6 text-base shadow-lg hover:shadow-xl transition-all"
                 >
                   <Rocket className="w-5 h-5 mr-2" />
                   Classify Exoplanet
@@ -281,9 +281,9 @@ export default function Classifier() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center text-muted-foreground text-sm mt-8"
+          className="text-center text-muted-foreground text-xs mt-6"
         >
-          Built with NASA exoplanet data • RandomForest ML model • React + FastAPI
+          NASA Data • ML Classification • Open Source
         </motion.p>
       </div>
     </section>
