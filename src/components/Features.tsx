@@ -22,23 +22,29 @@ const features = [
     className: "lg:row-start-1 lg:row-end-4 lg:col-start-2 lg:col-end-3 md:col-span-2",
   },
   {
-    Icon: Brain,
-    name: "AI Classification",
-    description: "Advanced machine learning algorithms trained on NASA data to classify celestial objects with 95%+ accuracy.",
-    href: "/classifier",
-    cta: "Try Classifier",
-    background: (
-      <img 
-        src="https://images.unsplash.com/photo-1555949963-aa79dcee981c?q=80&w=1200&auto=format&fit=crop" 
-        alt="AI Brain" 
-        className="absolute inset-0 w-full h-full object-cover opacity-30 filter hue-rotate-30" 
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
-    ),
-    className: "lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3 md:col-span-2",
+  Icon: Brain,
+  name: "AI Classification",
+  description:
+    "Advanced machine learning algorithms trained on NASA data to classify celestial objects with 95%+ accuracy.",
+  onClick: () => {
+    const element = document.getElementById("classifier");
+    element?.scrollIntoView({ behavior: "smooth" });
   },
+  cta: "Try Classifier",
+  background: (
+    <img
+      src="https://images.unsplash.com/photo-1555949963-aa79dcee981c?q=80&w=1200&auto=format&fit=crop"
+      alt="AI Brain"
+      className="absolute inset-0 w-full h-full object-cover opacity-30 filter hue-rotate-30"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+      }}
+    />
+  ),
+  className:
+    "lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3 md:col-span-2",
+},
+
   {
     Icon: Telescope,
     name: "Real-time Analysis",
