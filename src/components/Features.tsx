@@ -83,7 +83,7 @@ const features = [
     Icon: Globe,
     name: "Global Research",
     description: "Supporting international exoplanet research with open-source tools and collaborative datasets.",
-    href: "/research",
+    href: "",
     cta: "Join Research",
     background: (
       <img 
