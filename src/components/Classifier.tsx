@@ -1383,7 +1383,7 @@ export default function Classifier() {
         >
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl md:text-3xl font-light text-primary">
-              {mode === 'batch' && batchResults.length > 0 ? 'Batch Results' : '3D Exoplanet Model'}
+              {mode === 'batch' && batchResults.length > 0 ? 'Batch Results' : 'Exoplanet Analysis'}
             </h3>
             {((mode === 'single' && result) || (mode === 'batch' && batchResults.length > 0)) && (
               <Button variant="outline" size="sm" onClick={exportResults}>
