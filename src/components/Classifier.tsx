@@ -1479,7 +1479,7 @@ export default function Classifier() {
                   width='100%' 
                   height='100%'
                   className="rounded-2xl"
-                  title="3D Exoplanet Model"
+                  title="Exoplanet Analysis"
                 />
               </div>
             </>
