@@ -21,7 +21,7 @@ import ConfidenceHeatmap from "@/components/viz/ConfidenceHeatmap";
 import AnimatedResultsFlow from "@/components/viz/AnimatedResultsFlow";
 import PhaseFoldedTransit from "@/components/viz/PhaseFoldedTransit";
 import { toast } from "@/hooks/use-toast";
-import { predictSingle, predictCSV, type PredictionResponse } from "@/lib/api";
+import { predictSingle, predictCSV, warmUpBackend, startKeepAlive, stopKeepAlive, type PredictionResponse } from "@/lib/api";
 
 type AnalysisMode = "single" | "batch";
 
@@ -126,6 +126,8 @@ export default function Classifier() {
   const [history, setHistory] = useState<PredictionHistory[]>([]);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string>("");
+  const [backendWarming, setBackendWarming] = useState(true);
+  const [backendReady, setBackendReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Parameter states
@@ -193,6 +195,47 @@ export default function Classifier() {
   useEffect(() => {
     validateParameters();
   }, [validateParameters]);
+
+  // Proactive backend warm-up on component mount
+  useEffect(() => {
+    const warmUpBackendProactively = async () => {
+      try {
+        console.log('🚀 Proactively warming up backend on page load...');
+        const success = await warmUpBackend();
+        setBackendReady(success);
+        
+        if (success) {
+          // Start keep-alive to prevent backend from sleeping again
+          startKeepAlive();
+          
+          toast({
+            title: "Backend Ready",
+            description: "ML model loaded successfully. Predictions will be fast!",
+          });
+        } else {
+          toast({
+            title: "Backend Warming",
+            description: "Backend is starting up. First prediction may take longer.",
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.warn('Proactive warm-up failed:', error);
+        setBackendReady(false);
+      } finally {
+        setBackendWarming(false);
+      }
+    };
+
+    // Start warm-up after a short delay to not block initial render
+    const timer = setTimeout(warmUpBackendProactively, 1000);
+    
+    return () => {
+      clearTimeout(timer);
+      // Stop keep-alive when component unmounts
+      stopKeepAlive();
+    };
+  }, []); // Run once on mount
 
   // Reset to defaults
   const resetToDefaults = () => {
@@ -460,8 +503,20 @@ export default function Classifier() {
 
     setIsAnalyzing(true);
     try {
-      // Optional warm-up (safe no-op if backend is down)
-      // await getHealth();
+      // Warm up the backend first to avoid cold start delays (only if not already ready)
+      if (!backendReady) {
+        console.log('🔥 Backend not ready, warming up before prediction...');
+        const warmUpSuccess = await warmUpBackend();
+        
+        if (warmUpSuccess) {
+          console.log('✅ Backend warmed up and ready for predictions');
+          setBackendReady(true);
+        } else {
+          console.log('⚠️ Warm-up failed, but attempting prediction anyway');
+        }
+      } else {
+        console.log('✨ Backend already ready, proceeding with prediction');
+      }
 
       const response: PredictionResponse = await predictSingle(payload);
       const item = response.predictions[0];
@@ -725,7 +780,7 @@ export default function Classifier() {
               <p className="text-muted-foreground">
                 {mode === 'batch' 
                   ? 'Processing CSV file row by row using individual predictions... This may take a few minutes for large files.' 
-                  : 'Running classification model...'}
+                  : 'Warming up backend service and loading ML model... First prediction may take 15-30 seconds.'}
               </p>
             </div>
           </motion.div>
@@ -773,9 +828,31 @@ export default function Classifier() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="bg-card rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
           >
-            <h2 className="text-3xl md:text-4xl font-light text-primary mb-4">
-              {mode === "single" ? "Single Planet Analysis" : "Batch Analysis"}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-3xl md:text-4xl font-light text-primary">
+                {mode === "single" ? "Single Planet Analysis" : "Batch Analysis"}
+              </h2>
+              
+              {/* Backend Status Indicator */}
+              <div className="flex items-center gap-2 text-xs">
+                <div className={`w-2 h-2 rounded-full ${
+                  backendWarming 
+                    ? 'bg-yellow-500 animate-pulse' 
+                    : backendReady 
+                    ? 'bg-green-500' 
+                    : 'bg-red-500'
+                }`} />
+                <span className="text-muted-foreground">
+                  {backendWarming 
+                    ? 'Backend warming...' 
+                    : backendReady 
+                    ? 'ML model ready' 
+                    : 'Backend offline'
+                  }
+                </span>
+              </div>
+            </div>
+            
             <p className="text-muted-foreground mb-8">
               {mode === "single"
                 ? "Enter the parameters of an exoplanet to get its classification. You don't need to fill all fields - the model will use available data."

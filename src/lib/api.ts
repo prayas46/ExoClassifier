@@ -109,6 +109,78 @@ export async function getModelInfo(): Promise<any> {
   }
 }
 
+// Keep-alive mechanism to prevent backend from sleeping
+let keepAliveInterval: NodeJS.Timeout | null = null;
+
+export function startKeepAlive() {
+  if (keepAliveInterval) return; // Already running
+  
+  console.log('🐝 Starting keep-alive mechanism...');
+  
+  // Ping backend every 10 minutes to keep it awake
+  keepAliveInterval = setInterval(async () => {
+    try {
+      console.log('📞 Keep-alive ping...');
+      await getHealth(); // Simple health check
+    } catch (error) {
+      console.warn('Keep-alive ping failed:', error);
+    }
+  }, 10 * 60 * 1000); // 10 minutes
+}
+
+export function stopKeepAlive() {
+  if (keepAliveInterval) {
+    console.log('🛯 Stopping keep-alive mechanism');
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+  }
+}
+
+// Warm-up function to wake up sleeping backend
+export async function warmUpBackend(): Promise<boolean> {
+  try {
+    console.log('🔥 Warming up backend service...');
+    const startTime = Date.now();
+    
+    let requestUrl, requestOptions;
+    
+    if (isDevelopment || !useProxy) {
+      requestUrl = `${API_BASE_URL}/`;
+      requestOptions = {
+        method: "GET",
+        mode: 'cors' as RequestMode,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      };
+    } else {
+      requestUrl = API_BASE_URL;
+      requestOptions = {
+        method: "POST",
+        headers: {
+          'Accept': 'application/json', 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path: '/' }),
+        signal: AbortSignal.timeout(30000)
+      };
+    }
+    
+    const response = await fetch(requestUrl, requestOptions);
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    console.log(`🚀 Backend warmed up in ${duration}ms - Ready for predictions!`);
+    return response.ok;
+  } catch (error) {
+    console.warn('⚠️ Backend warm-up failed, but continuing with prediction:', error);
+    return false; // Don't fail the prediction, just warn
+  }
+}
+
 export async function predictSingle(payload: Record<string, number | undefined>): Promise<PredictionResponse> {
   try {
     console.log('Making prediction request, useProxy:', useProxy);
