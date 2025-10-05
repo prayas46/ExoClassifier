@@ -171,32 +171,129 @@ export async function predictSingle(payload: Record<string, number | undefined>)
 
 export async function predictCSV(file: File): Promise<PredictionResponse> {
   try {
-    const form = new FormData();
-    form.append("file", file);
-
-    console.log('Making CSV prediction request to:', `${API_BASE_URL}/predict`);
-    const res = await fetch(`${API_BASE_URL}/predict`, {
-      method: "POST",
-      mode: 'cors',
-      body: form,
-    });
-    console.log('CSV prediction response status:', res.status);
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('CSV prediction error response:', text);
-      throw new Error(`CSV prediction failed: ${res.status} ${text}`);
+    console.log('Processing CSV file for batch predictions...');
+    
+    // Read and parse the CSV file
+    const content = await file.text();
+    const lines = content.trim().split(/\r?\n/);
+    
+    if (lines.length < 2) {
+      throw new Error('CSV file must have at least a header row and one data row.');
     }
-    const data = await res.json();
-    console.log('CSV prediction response:', data);
-    return data;
+
+    // Parse CSV headers and data
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const rows = lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const row: any = {};
+      headers.forEach((header, index) => {
+        const value = values[index];
+        if (value && value !== '') {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            row[header] = numValue;
+          }
+        }
+      });
+      return row;
+    });
+
+    console.log(`Processing ${rows.length} rows from CSV`);
+
+    // Map CSV columns to API expected format
+    const mapCsvRowToApiFormat = (row: any) => {
+      const apiRow: any = {};
+      
+      // Map common column names to API format
+      const columnMapping = {
+        'pl_orbper': 'pl_orbper',
+        'orbital_period': 'pl_orbper',
+        'pl_rade': 'pl_rade', 
+        'planet_radius': 'pl_rade',
+        'pl_trandep': 'pl_trandep',
+        'transit_depth': 'pl_trandep',
+        'pl_trandur': 'pl_trandur',
+        'transit_duration': 'pl_trandur',
+        'pl_bmasse': 'pl_bmasse',
+        'planet_mass': 'pl_bmasse',
+        'st_teff': 'st_teff',
+        'stellar_temperature': 'st_teff',
+        'st_rad': 'st_rad',
+        'stellar_radius': 'st_rad',
+        'sy_dist': 'sy_dist',
+        'system_distance': 'sy_dist',
+      };
+      
+      // Apply column mapping
+      Object.keys(row).forEach(key => {
+        const mappedKey = columnMapping[key] || key;
+        if (row[key] !== undefined) {
+          apiRow[mappedKey] = row[key];
+        }
+      });
+      
+      return apiRow;
+    };
+
+    // Process rows in batches to avoid overwhelming the API
+    const batchSize = 10;
+    const predictions = [];
+    
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(rows.length/batchSize)}`);
+      
+      const batchPromises = batch.map(async (row, index) => {
+        const apiPayload = mapCsvRowToApiFormat(row);
+        console.log(`Predicting row ${i + index + 1}:`, Object.keys(apiPayload));
+        
+        try {
+          const singleResult = await predictSingle(apiPayload);
+          return {
+            row_index: i + index,
+            prediction: singleResult.predictions[0].prediction,
+            confidence: singleResult.predictions[0].confidence,
+            probabilities: singleResult.predictions[0].probabilities
+          };
+        } catch (error) {
+          console.warn(`Failed to predict row ${i + index + 1}:`, error);
+          return {
+            row_index: i + index,
+            prediction: 'FAILED',
+            confidence: 0,
+            error: error.message
+          };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      predictions.push(...batchResults);
+      
+      // Small delay between batches to be nice to the API
+      if (i + batchSize < rows.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    console.log(`Completed processing ${predictions.length} predictions`);
+
+    // Return in the expected format
+    return {
+      predictions,
+      summary: {
+        total_rows: rows.length,
+        successful_predictions: predictions.filter(p => p.prediction !== 'FAILED').length,
+        failed_predictions: predictions.filter(p => p.prediction === 'FAILED').length
+      },
+      processing_info: {
+        method: 'batch_single_predictions',
+        file_name: file.name,
+        file_size: file.size,
+        batch_size: batchSize
+      }
+    };
   } catch (error) {
     console.error('CSV prediction error details:', error);
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      const corsMessage = isDevelopment 
-        ? 'Network error: Unable to connect to the API for CSV prediction.'
-        : 'Network error: CORS policy is blocking the CSV prediction request.';
-      throw new Error(corsMessage);
-    }
     throw error;
   }
 }

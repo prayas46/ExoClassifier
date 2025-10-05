@@ -532,6 +532,12 @@ export default function Classifier() {
     setIsAnalyzing(true);
     setUploadError('');
     console.log('Starting batch analysis with file:', csvFile.name);
+    
+    // Show initial toast
+    toast({
+      title: "Starting Batch Analysis",
+      description: `Processing ${csvFile.name}... This may take a few minutes.`
+    });
 
     try {
       // Keep parsing locally so we can power the visualizations
@@ -571,9 +577,12 @@ export default function Classifier() {
 
       setBatchResults(results);
 
+      const successful = results.filter(r => r.planet_type !== 'FAILED').length;
+      const failed = results.length - successful;
+      
       toast({
         title: "Batch Analysis Complete",
-        description: `Successfully classified ${results.length} exoplanets.`,
+        description: `Successfully classified ${successful} exoplanets.${failed > 0 ? ` ${failed} failed.` : ''}`,
       });
     } catch (error: any) {
       console.error('Batch analysis error:', error);
@@ -714,7 +723,9 @@ export default function Classifier() {
               <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Analyzing Exoplanets</h3>
               <p className="text-muted-foreground">
-                {mode === 'batch' ? 'Processing your CSV file...' : 'Running classification model...'}
+                {mode === 'batch' 
+                  ? 'Processing CSV file row by row using individual predictions... This may take a few minutes for large files.' 
+                  : 'Running classification model...'}
               </p>
             </div>
           </motion.div>

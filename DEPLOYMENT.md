@@ -4,6 +4,14 @@
 
 This project includes a solution for CORS issues when deploying to Vercel. The backend API at `https://exoplanet-classifier-backend-api.onrender.com` doesn't allow cross-origin requests from arbitrary domains.
 
+## Batch Processing Fix
+
+Additionally, the CSV batch processing has been updated to work around the file upload CORS limitation by:
+- Processing CSV files locally in the browser
+- Making individual prediction requests for each row
+- Combining results into a batch response
+- This ensures compatibility with the proxy system
+
 ## Solution: Vercel Serverless Proxy
 
 We've implemented a Vercel serverless function (`/api/proxy.js`) that acts as a proxy to handle CORS:
@@ -48,7 +56,13 @@ The proxy function:
 - Accepts requests from your frontend
 - Forwards them to the backend API
 - Returns responses with proper CORS headers
-- Handles both JSON and FormData (for CSV uploads)
+- Handles JSON requests (single predictions)
+
+Batch processing works by:
+- Reading CSV files locally in the browser
+- Processing each row as individual single predictions
+- Combining all results into a batch response
+- Avoiding the need for file upload through proxy
 
 ## Testing
 
