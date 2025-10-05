@@ -7,7 +7,7 @@ const features = [
     Icon: Database,
     name: "NASA Datasets",
     description: "Comprehensive K2, Kepler, and TESS datasets with thousands of exoplanet observations for training our AI models.",
-    href: "https://www.spaceappschallenge.org/2025/challenges/a-world-away-hunting-for-exoplanets-with-ai/?tab=resources",
+    href: "https://exoplanetarchive.ipac.caltech.edu/docs/data.html",
     cta: "Explore Data",
     background: (
       <img 
