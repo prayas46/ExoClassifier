@@ -548,6 +548,7 @@ export default function Classifier() {
       };
 
       setResult(mapped);
+      setBackendReady(true);
       addToHistory(
         {
           orbital_period: orbitalPeriod[0],
