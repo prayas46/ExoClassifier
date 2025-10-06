@@ -22,6 +22,7 @@ import AnimatedResultsFlow from "@/components/viz/AnimatedResultsFlow";
 import PhaseFoldedTransit from "@/components/viz/PhaseFoldedTransit";
 import { toast } from "@/hooks/use-toast";
 import { predictSingle, predictCSV, warmUpBackend, startKeepAlive, stopKeepAlive, type PredictionResponse } from "@/lib/api";
+import InteractivePlanet from "@/components/InteractivePlanet";
 
 type AnalysisMode = "single" | "batch";
 
@@ -1549,16 +1550,31 @@ export default function Classifier() {
           ) : (
             <>
               {/* 3D Visualization Container */}
-              <div className="relative w-full h-64 mb-8 bg-gradient-to-br from-slate-900 to-purple-900 rounded-2xl overflow-hidden border border-primary/20">
-                <iframe 
-                  src='https://my.spline.design/worldplanet-ACy9j4dwrbm6RTBiCz8JGpFz/' 
-                  frameBorder='0' 
-                  width='100%' 
-                  height='100%'
-                  className="rounded-2xl"
-                  title="Exoplanet Analysis"
-                />
-              </div>
+              {(() => {
+                // Derive live 3D properties from current inputs for an interactive feel
+                const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+                const pr = planetRadius[0];
+                const st = stellarTemp[0];
+                const op = orbitalPeriod[0];
+                const radius3d = clamp(1.0 + (clamp(pr, 0.3, 6) - 1.0) * 0.25, 0.7, 2.4);
+                const hue = clamp(260 - ((clamp(st, 3000, 10000) - 3000) / 7000) * 200, 20, 260);
+                const spin = clamp((365.25 / clamp(op, 1, 1000)), 0.2, 1.8);
+                const ringBySize = pr >= 3;
+                const ringByType = result ? ['Gas Giant','Hot Jupiter','Neptune-like'].includes(result.planet_type) : false;
+                const showRing = ringByType || ringBySize;
+                return (
+                  <div className="relative w-full h-96 mb-8 rounded-2xl overflow-hidden border border-primary/20 bg-black">
+                    <InteractivePlanet
+                      planetType={result ? result.planet_type : 'default'}
+                      radius={radius3d}
+                      ring={showRing}
+                      hue={hue}
+                      rotateSpeed={spin}
+                      className="rounded-2xl"
+                    />
+                  </div>
+                );
+              })()}
             </>
           )}
 
