@@ -51,15 +51,14 @@ export async function getHealth(): Promise<any> {
         },
       };
     } else {
-      // Use proxy in production
-      requestUrl = API_BASE_URL;
+      // Use proxy in production: call GET via query param so the proxy performs a GET to backend '/'
+      requestUrl = `${API_BASE_URL}?path=/`;
       requestOptions = {
-        method: "POST",
+        method: "GET",
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ path: '/' })
       };
     }
     
@@ -88,13 +87,24 @@ export async function getHealth(): Promise<any> {
 
 export async function getModelInfo(): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/model/info`, { 
+    let requestUrl: string;
+    let requestOptions: RequestInit = {
       method: "GET",
       mode: 'cors',
       headers: {
         'Accept': 'application/json',
       },
-    });
+    };
+
+    if (isDevelopment || !useProxy) {
+      // Direct in development (Vite proxy handles /api -> backend)
+      requestUrl = `${API_BASE_URL}/model/info`;
+    } else {
+      // Production via Vercel proxy using query param (?path=)
+      requestUrl = `${API_BASE_URL}?path=/model/info`;
+    }
+
+    const res = await fetch(requestUrl, requestOptions);
     if (!res.ok) {
       const errorText = await res.text();
       throw new Error(`Model info failed: ${res.status} - ${errorText}`);
@@ -167,14 +177,14 @@ export async function warmUpBackend(): Promise<boolean> {
         },
       };
     } else {
-      requestUrl = API_BASE_URL;
+      // Use proxy in production via GET (?path=/) so backend receives a GET to '/'
+      requestUrl = `${API_BASE_URL}?path=/`;
       requestOptions = {
-        method: "POST",
+        method: "GET",
         headers: {
           'Accept': 'application/json', 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ path: '/' }),
       };
     }
     
