@@ -137,12 +137,24 @@ export function stopKeepAlive() {
 }
 
 // Warm-up function to wake up sleeping backend
+// Use a robust timeout helper to avoid AbortSignal.timeout compatibility issues
+const DEFAULT_TIMEOUT_MS = 30000;
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 export async function warmUpBackend(): Promise<boolean> {
   try {
     console.log('🔥 Warming up backend service...');
     const startTime = Date.now();
     
-    let requestUrl, requestOptions;
+    let requestUrl: string, requestOptions: RequestInit;
     
     if (isDevelopment || !useProxy) {
       requestUrl = `${API_BASE_URL}/`;
@@ -153,8 +165,6 @@ export async function warmUpBackend(): Promise<boolean> {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(30000) // 30 second timeout
       };
     } else {
       requestUrl = API_BASE_URL;
@@ -165,11 +175,10 @@ export async function warmUpBackend(): Promise<boolean> {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: '/' }),
-        signal: AbortSignal.timeout(30000)
       };
     }
     
-    const response = await fetch(requestUrl, requestOptions);
+    const response = await fetchWithTimeout(requestUrl, requestOptions, DEFAULT_TIMEOUT_MS);
     const endTime = Date.now();
     const duration = endTime - startTime;
     
