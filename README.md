@@ -60,6 +60,29 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Backend warm-up, health, and keep-alive
+
+To avoid cold start delays and CORS issues, the app proactively warms the backend and uses a proxy in production:
+
+- Warm-up flow
+  - On mount, the Classifier triggers a warm-up after a short delay, then starts a periodic keep-alive.
+  - Before first prediction, if not yet marked ready, it warms up again.
+  - After any successful prediction, the UI is forced to "ML model ready".
+- Endpoints
+  - Development: direct calls to `/api` via Vite proxy to `https://exoplanet-classifier-backend-api.onrender.com`.
+  - Production: calls to `/api/proxy` (Vercel serverless proxy). Warm-up uses `{ path: '/' }`.
+- Keep-alive: pings the backend every 10 minutes via a simple health check.
+- Implementation highlights
+  - `src/lib/api.ts`: `warmUpBackend()` with `fetchWithTimeout` (AbortController), `getHealth()`, `startKeepAlive()`/`stopKeepAlive()`.
+  - `src/components/Classifier.tsx`: integrates warm-up lifecycle and UI readiness indicator.
+  - `vite.config.ts`: dev proxy for `/api`.
+  - `api/proxy.js` + `vercel.json`: production proxy and CORS headers.
+
+Recent measurements (example):
+- `GET /` ~0.95s (includes `model_loaded: true`)
+- `GET /model/info` ~0.42s
+- `POST /predict/single` ~0.74s
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/21f39cfd-d993-4c8c-b2e4-175bbc121fb8) and click on Share -> Publish.
