@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button-new";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import earthImage from "@/assets/earth-purple.png";
+import SplineEarth from "@/components/SplineEarth";
 
 export default function Hero() {
   const [isUnmuted, setIsUnmuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  
+
   const scrollToClassifier = () => {
     const element = document.getElementById('classifier');
     const lenis: any = (window as any).lenis;
@@ -63,10 +64,10 @@ export default function Hero() {
           </p>
 
           <div className="mb-10 sm:mb-0 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-0 w-[30%] mx-auto">
-            <Button 
+            <Button
               onClick={scrollToClassifier}
-              variant="solid" 
-              size="default" 
+              variant="solid"
+              size="default"
               className="w-full sm:w-auto my-1 whitespace-nowrap"
             >
               Explore Classifier
@@ -102,18 +103,29 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
         >
           <div
-            className="w-full flex relative overflow-hidden h-48 md:h-80 lg:h-[420px]"
+            className="w-full relative overflow-hidden mt-6 md:mt-8 lg:mt-10 h-56 md:h-96 lg:h-[560px]"
           >
-            <img
-              src={earthImage}
-              alt="Earth"
-              className="absolute top-0 left-0 -z-10 w-full h-full object-cover object-top opacity-90 select-none pointer-events-none"
+            {/* Masked and zoomed to show only the top cap of the globe */}
+            <div
+              className="absolute inset-0"
               style={{
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, black 65%, transparent 100%)",
-                maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 78%, rgba(0,0,0,0) 100%)",
+                maskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 78%, rgba(0,0,0,0) 100%)",
               }}
-            />
+            >
+              {/* Center the globe perfectly and give it extra width to avoid right-side gaps */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150vw] h-full pointer-events-none">
+                <div
+                  className="w-full h-full"
+                  style={{
+                    transform: "translateX(-2%) translateY(-12%) scale(2.55)",
+                    transformOrigin: "top center",
+                  }}
+                >
+                  <SplineEarth url="https://my.spline.design/worldplanet-Q4MXsX6IFmgDde5S1Pu4uuT7/" />
+                </div>
+              </div>
+            </div>
           </div>
 
           <ContainerScroll
@@ -138,7 +150,7 @@ export default function Hero() {
                 className="w-full h-full rounded-2xl"
               ></iframe>
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-2xl pointer-events-none" />
-              
+
               {/* Custom Video Controls */}
               <div className="absolute top-4 right-4 flex gap-2">
                 <Button
@@ -158,7 +170,7 @@ export default function Hero() {
                   {isUnmuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </Button>
               </div>
-              
+
               <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
                 <div className="flex items-center gap-3 text-white">
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
