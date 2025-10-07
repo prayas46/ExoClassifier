@@ -1,4 +1,4 @@
-// Centralized API helper for the exoplanet-classifier backend
+            // Centralized API helper for the exoplanet-classifier backend
 // Uses Vite env variable VITE_API_BASE_URL
 
 const isDevelopment = import.meta.env.DEV;

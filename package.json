@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@studio-freight/lenis": "^1.0.39",
     "@react-three/drei": "^9.103.0",
     "@react-three/fiber": "^8.16.1",
     "three": "^0.166.1",

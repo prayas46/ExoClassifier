@@ -28,7 +28,9 @@ const features = [
     "Advanced machine learning algorithms trained on NASA data to classify celestial objects with 95%+ accuracy.",
   onClick: () => {
     const element = document.getElementById("classifier");
-    element?.scrollIntoView({ behavior: "smooth" });
+    const lenis: any = (window as any).lenis;
+    if (lenis && element) lenis.scrollTo(element);
+    else element?.scrollIntoView({ behavior: "smooth" });
   },
   cta: "Try Classifier",
   background: (
