@@ -11,12 +11,16 @@ export default function Hero() {
   
   const scrollToClassifier = () => {
     const element = document.getElementById('classifier');
-    element?.scrollIntoView({ behavior: 'smooth' });
+    const lenis: any = (window as any).lenis;
+    if (lenis && element) lenis.scrollTo(element);
+    else element?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const scrollToFeatures = () => {
     const element = document.getElementById('features');
-    element?.scrollIntoView({ behavior: 'smooth' });
+    const lenis: any = (window as any).lenis;
+    if (lenis && element) lenis.scrollTo(element);
+    else element?.scrollIntoView({ behavior: 'smooth' });
   };
   return (
     <section
