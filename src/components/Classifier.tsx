@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip as UiTooltip, TooltipContent as UiTooltipContent, TooltipTrigger as UiTooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Rocket, BarChart3, Globe, Star, Zap, Upload, Download, Clock, AlertTriangle, CheckCircle } from "lucide-react";
+import { Rocket, BarChart3, Globe, Star, Zap, Upload, Download, Clock, AlertTriangle, CheckCircle, ExternalLink } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import LightCurveGraph from "@/components/viz/LightCurveGraph";
 import TransitGeometryDiagram from "@/components/viz/TransitGeometryDiagram";
@@ -1309,6 +1309,20 @@ export default function Classifier() {
                   <AlertDescription>{uploadError}</AlertDescription>
                 </Alert>
               )}
+
+              {/* Sample CSVs button */}
+              <div className="flex justify-center">
+                <Button variant="outline" asChild>
+                  <a
+                    href="https://drive.google.com/drive/folders/1iOO3hbNyDQKFXYI7QaLdKMVv9P_4ZAJU"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Sample CSV files for Batch Analysis
+                  </a>
+                </Button>
+              </div>
 
               {/* File Upload Area */}
               <div 
